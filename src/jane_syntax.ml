@@ -1,5 +1,5 @@
 (*_ This file is manually imported from the Jane Street version of the
-   OCaml compiler. Don't make changes directly to this file. *)
+  OCaml compiler. Don't make changes directly to this file. *)
 [@@@ocaml.warning "-missing-record-field-pattern"]
 
 open! Shadow_compiler_distribution
@@ -10,8 +10,7 @@ open Jane_syntax_parsing
 
 (** We carefully regulate which bindings we import from [Language_extension]
     to ensure that we can import this file into the Jane Street internal
-    repo with no changes.
-*)
+    repo with no changes. *)
 module Language_extension = struct
   include Language_extension_kernel
 
@@ -75,9 +74,8 @@ end = struct
       | Not_this_embedding name ->
         Location.errorf
           ~loc
-          "Tried to desugar the embedded term %a@ as belonging to the %s extension"
-          Embedded_name.pp_quoted_name
-          name
+          "Tried to desugar the embedded term %s@ as belonging to the %s extension"
+          (Format.kasprintf (fun x -> x) "%a" Embedded_name.pp_quoted_name name)
           extension_string
       | Non_embedding ->
         Location.errorf
@@ -197,8 +195,7 @@ module type Stringable = sig
 
   (** For error messages: a name that can be used to identify the
       [t] being converted to and from string, and its indefinite
-      article (either "a" or "an").
-  *)
+      article (either "a" or "an"). *)
   val indefinite_article_and_name : string * string
 end
 
@@ -239,8 +236,8 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
       let items =
         List.map
           (function
-           | None -> structure_item_of_none
-           | Some t_loc -> structure_item_of_expr (as_expr t_loc))
+            | None -> structure_item_of_none
+            | Some t_loc -> structure_item_of_expr (as_expr t_loc))
           t_locs
       in
       PStr items
@@ -255,11 +252,10 @@ module Make_payload_protocol_of_stringable (Stringable : Stringable) :
         let indefinite_article, name = Stringable.indefinite_article_and_name in
         Location.errorf
           ~loc
-          "Attribute payload does not name %s %s:@;%a"
+          "Attribute payload does not name %s %s:@;%s"
           indefinite_article
           name
-          (Printast.payload 0)
-          payload
+          (Format.kasprintf (fun x -> x) "%a" (Printast.payload 0) payload)
     ;;
 
     exception Error of Location.t * error
@@ -392,13 +388,16 @@ end = struct
             ~loc
             "Wrong number of layouts in an layout attribute;@;\
              expecting %i but got this list:@;\
-             %a"
+             %s"
             n
-            (Format.pp_print_list
-               (Format.pp_print_option
-                  ~none:(fun ppf () -> Format.fprintf ppf "None")
-                  Jkinds_pprint.jkind_annotation))
-            jkinds
+            (Format.kasprintf
+               (fun x -> x)
+               "%a"
+               (Format.pp_print_list
+                  (Format.pp_print_option
+                     ~none:(fun ppf () -> Format.fprintf ppf "None")
+                     Jkinds_pprint.jkind_annotation))
+               jkinds)
       ;;
 
       exception Error of Location.t * error
@@ -437,17 +436,17 @@ module Mode_expr = struct
     type raw = string
 
     module Protocol = Make_payload_protocol_of_stringable (struct
-      type t = raw
+        type t = raw
 
-      let indefinite_article_and_name = "a", "mode"
-      let to_string s = s
+        let indefinite_article_and_name = "a", "mode"
+        let to_string s = s
 
-      (* Ideally, we should check that [s] consists of only alphabet and numbers.
-         However, this func *)
+        (* Ideally, we should check that [s] consists of only alphabet and numbers.
+           However, this func *)
 
-      let of_string' s = s
-      let of_string s = Some (of_string' s)
-    end)
+        let of_string' s = s
+        let of_string s = Some (of_string' s)
+      end)
 
     let list_as_payload = Protocol.Encode.list_as_payload
     let list_from_payload = Protocol.Decode.list_from_payload
@@ -675,15 +674,17 @@ module Comprehensions = struct
       | Has_payload payload ->
         Location.errorf
           ~loc
-          "Comprehensions attribute has an unexpected payload:@;%a"
-          (Printast.payload 0)
-          payload
+          "Comprehensions attribute has an unexpected payload:@;%s"
+          (Format.kasprintf (fun x -> x) "%a" (Printast.payload 0) payload)
       | Bad_comprehension_embedding subparts ->
         Location.errorf
           ~loc
-          "Unknown, unexpected, or malformed@ comprehension embedded term %a"
-          Embedded_name.pp_quoted_name
-          (Embedded_name.of_feature feature subparts)
+          "Unknown, unexpected, or malformed@ comprehension embedded term %s"
+          (Format.kasprintf
+             (fun x -> x)
+             "%a"
+             Embedded_name.pp_quoted_name
+             (Embedded_name.of_feature feature subparts))
       | No_clauses ->
         Location.errorf ~loc "Tried to desugar a comprehension with no clauses"
     ;;
@@ -836,8 +837,7 @@ module N_ary_functions = struct
 
   (** An attribute of the form [@jane.erasable._builtin.*] that's relevant
       to n-ary functions. The "*" in the example is what we call the "suffix".
-      See the below BNF for the meaning of the attributes.
-  *)
+      See the below BNF for the meaning of the attributes. *)
   module Attribute_node = struct
     type after_fun =
       | Cases
@@ -851,14 +851,14 @@ module N_ary_functions = struct
 
     (* We return an [of_suffix_result] from [of_suffix] rather than having
        [of_suffix] interpret the payload for two reasons:
-         1. It's nice to keep the string production / matching extremely
-            visually simple so it's easy to check that [to_suffix_and_payload]
-            and [of_suffix] correspond.
-         2. We want to raise a [Desugaring_error.Has_payload] in the case that
-            a [No_payload t] has an improper payload, but this creates a
-            dependency cycle between [Attribute_node] and [Desugaring_error].
-            Moving the interpretation of the payload to the caller of
-            [of_suffix] breaks this cycle.
+       1. It's nice to keep the string production / matching extremely
+       visually simple so it's easy to check that [to_suffix_and_payload]
+       and [of_suffix] correspond.
+       2. We want to raise a [Desugaring_error.Has_payload] in the case that
+       a [No_payload t] has an improper payload, but this creates a
+       dependency cycle between [Attribute_node] and [Desugaring_error].
+       Moving the interpretation of the payload to the caller of
+       [of_suffix] breaks this cycle.
     *)
 
     type of_suffix_result =
@@ -916,9 +916,8 @@ module N_ary_functions = struct
       | Has_payload payload ->
         Location.errorf
           ~loc
-          "Syntactic arity attribute has an unexpected payload:@;%a"
-          (Printast.payload 0)
-          payload
+          "Syntactic arity attribute has an unexpected payload:@;%s"
+          (Format.kasprintf (fun x -> x) "%a" (Printast.payload 0) payload)
       | Expected_constraint_or_coerce ->
         Location.errorf
           ~loc
@@ -927,21 +926,22 @@ module N_ary_functions = struct
         Location.errorf
           ~loc
           "Expected a Pexp_function node in this position, as the enclosing Pexp_fun is \
-           annotated with %a."
-          Attribute_node.format
-          attribute
+           annotated with %s."
+          (Format.kasprintf (fun x -> x) "%a" Attribute_node.format attribute)
       | Expected_fun_or_newtype attribute ->
         Location.errorf
           ~loc
-          "Only Pexp_fun or Pexp_newtype may carry the attribute %a."
-          Attribute_node.format
-          attribute
+          "Only Pexp_fun or Pexp_newtype may carry the attribute %s."
+          (Format.kasprintf (fun x -> x) "%a" Attribute_node.format attribute)
       | Expected_newtype_with_jkind_annotation annotation ->
         Location.errorf
           ~loc
-          "Only Pexp_newtype may carry the attribute %a."
-          Attribute_node.format
-          (Attribute_node.Jkind_annotation annotation)
+          "Only Pexp_newtype may carry the attribute %s."
+          (Format.kasprintf
+             (fun x -> x)
+             "%a"
+             Attribute_node.format
+             (Attribute_node.Jkind_annotation annotation))
       | Parameterless_function ->
         Location.errorf
           ~loc
@@ -1133,8 +1133,8 @@ module N_ary_functions = struct
           ~jkind:(Some next_jkind)
       | Some (Mode_constraint _, _unconsumed_attributes) ->
         (* We need not pass through any unconsumed attributes, as
-            [Mode_constraint _] isn't the outermost Jane Syntax node:
-            [extract_fun_params] took in [Pexp_fun] or [Pexp_newtype].
+           [Mode_constraint _] isn't the outermost Jane Syntax node:
+           [extract_fun_params] took in [Pexp_fun] or [Pexp_newtype].
         *)
         let function_constraint, body = require_constraint expr in
         None, Stop (Some function_constraint, Pfunction_body body)
@@ -1189,8 +1189,8 @@ module N_ary_functions = struct
   let of_expr =
     let function_without_additional_params cases constraint_ loc : expression =
       (* If the outermost node is function cases, we place the
-          attributes on the function node as a whole rather than on the
-          [Pfunction_cases] body.
+         attributes on the function node as a whole rather than on the
+         [Pfunction_cases] body.
       *)
       [], constraint_, Pfunction_cases (cases, loc, [])
     in
@@ -1260,7 +1260,7 @@ module N_ary_functions = struct
           | Some { mode_annotations; type_constraint } ->
             let constrained_body =
               (* We can't call [Location.ghostify] here, as we need this file
-                   to build with the upstream compiler; see Note [Buildable with
+                 to build with the upstream compiler; see Note [Buildable with
                    upstream] in jane_syntax.mli for details. *)
               let loc = { body.pexp_loc with loc_ghost = true } in
               match type_constraint with
@@ -1334,9 +1334,8 @@ module Labeled_tuples = struct
       | Has_payload payload ->
         Location.errorf
           ~loc
-          "Labeled tuples attribute has an unexpected payload:@;%a"
-          (Printast.payload 0)
-          payload
+          "Labeled tuples attribute has an unexpected payload:@;%s"
+          (Format.kasprintf (fun x -> x) "%a" (Printast.payload 0) payload)
     ;;
 
     exception Error of Location.t * error
@@ -1589,11 +1588,14 @@ module Layouts = struct
       | Unexpected_attribute names ->
         Location.errorf
           ~loc
-          "Layout extension does not understand these attribute names:@;[%a]"
-          (Format.pp_print_list
-             ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
-             Format.pp_print_text)
-          names
+          "Layout extension does not understand these attribute names:@;[%s]"
+          (Format.kasprintf
+             (fun x -> x)
+             "%a"
+             (Format.pp_print_list
+                ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
+                Format.pp_print_text)
+             names)
       | No_integer_suffix ->
         Location.errorf
           ~loc
@@ -1602,9 +1604,8 @@ module Layouts = struct
       | Unexpected_wrapped_expr expr ->
         Location.errorf
           ~loc
-          "Layout attribute on wrong expression:@;%a"
-          (Printast.expression 0)
-          expr
+          "Layout attribute on wrong expression:@;%s"
+          (Format.kasprintf (fun x -> x) "%a" (Printast.expression 0) expr)
       | Unexpected_wrapped_pat _pat ->
         Location.errorf ~loc "Layout attribute on wrong pattern"
     ;;
@@ -1718,9 +1719,9 @@ module Layouts = struct
           let payload = Encode.as_payload jkind in
           Type_of.wrap_jane_syntax [ "var" ] ~payload
           @@
-          (match name with
-           | None -> Ast_helper.Typ.any ~loc ()
-           | Some name -> Ast_helper.Typ.var ~loc name)
+            (match name with
+            | None -> Ast_helper.Typ.any ~loc ()
+            | Some name -> Ast_helper.Typ.var ~loc name)
         | Ltyp_poly { bound_vars; inner_type } ->
           let var_names, jkinds = List.split bound_vars in
           (* Pass the loc because we don't want a ghost location here *)
@@ -1798,7 +1799,7 @@ module Layouts = struct
           let vars, jkinds = List.split bound_vars in
           let ext_ctor =
             (* Pass ~loc here, because the constructor declaration is
-                 not a ghost *)
+               not a ghost *)
             Ast_helper.Te.decl ~loc ~vars ~args ?info ?docs ?res name
           in
           if List.for_all Option.is_none jkinds
